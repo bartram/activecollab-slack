@@ -11,16 +11,16 @@ function slack_handle_on_object_inserted($object) {
       $project = $object->getProject();
       if ($channel = $project->getCustomField1()) {
 
-        $slack_users = $slack->call('users.list');
+        //$slack_users = $slack->call('users.list');
 
-        $id = $object->getTaskId();
-        $url = $object->getViewUrl();
-        $name = $object->getName();
+        $id     = $object->getTaskId();
+        $url    = $object->getViewUrl();
+        $name   = $object->getName();
 
         $message = "New task *<{$url}|#{$id}: {$name}>*";
 
         $assignees = $object->assignees();
-        $assignees_list = array();
+        //$assignees_list = array();
 
         $user = $assignees->getAssignee();
         if ($user) {
@@ -35,10 +35,11 @@ function slack_handle_on_object_inserted($object) {
         }
 
         $slack->call('chat.postMessage', array(
-          'channel' => $channel,
-          'text' => $message,
-          'username' => 'ActiveCollab',
-          'as_user' => FALSE,
+          'channel'     => $channel,
+          'text'        => $message,
+          'username'    => 'ActiveCollab',
+          'as_user'     => FALSE,
+          'icon_url'    => defined('ASSETS_URL') ? ASSETS_URL . '/images/system/default/application-branding/logo.40x40.png'  : ''
         ));
 
       }
@@ -49,26 +50,28 @@ function slack_handle_on_object_inserted($object) {
       if ($channel = $project->getCustomField1()) {
 
         $created_by = $object->getCreatedByName();
-        $url = $object->getViewUrl();
+        //$url = $object->getViewUrl();
 
-        $task = $object->getParent();
-        $task_id = $task->getTaskId();
-        $task_name = $task->getName();
-        $task_url = $task->getViewUrl();
+        $task       = $object->getParent();
+        $task_id    = $task->getTaskId();
+        $task_name  = $task->getName();
+        $task_url   = $task->getViewUrl();
 
         $body = strip_tags($object->getBody());
 
         $slack->call('chat.postMessage', array(
-          'channel' => $channel,
-          'text' => "New comment by *$created_by* on task *<{$task_url}|#{$task_id}: {$task_name}>*",
-          'username' => 'ActiveCollab',
-          'as_user' => FALSE,
+          'channel'     => $channel,
+          'text'        => "New comment by *$created_by* on task *<{$task_url}|#{$task_id}: {$task_name}>*",
+          'username'    => 'ActiveCollab',
+          'as_user'     => FALSE,
+          'icon_url'    => defined('ASSETS_URL') ? ASSETS_URL . '/images/system/default/application-branding/logo.40x40.png'  : ''
         ));
         $slack->call('chat.postMessage', array(
-          'channel' => $channel,
-          'text' => ">>>{$body}",
-          'username' => 'ActiveCollab',
-          'as_user' => FALSE,
+          'channel'     => $channel,
+          'text'        => ">>>{$body}",
+          'username'    => 'ActiveCollab',
+          'as_user'     => FALSE,
+          'icon_url'    => defined('ASSETS_URL') ? ASSETS_URL . '/images/system/default/application-branding/logo.40x40.png'  : ''
         ));
       }
     }

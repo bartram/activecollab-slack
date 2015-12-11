@@ -1,81 +1,70 @@
 <?php
 
+/**
+ * @param $object
+ * @throws InvalidInstanceError
+ * @throws NotImplementedError
+ */
 function slack_handle_on_object_inserted($object) {
-
-  if (defined('SLACK_API_TOKEN')) {
-
-    $slack = new Slack(SLACK_API_TOKEN);
 
     if ($object instanceof Task) {
 
-      $project = $object->getProject();
-      if ($channel = $project->getCustomField1()) {
+        $project    = $object->getProject();
+        $channel    = slack_get_channel( $project->getCustomField1() );
+        $token      = slack_get_token( $project->getCustomField2() );
 
-        //$slack_users = $slack->call('users.list');
+        if ($channel && $token) {
 
-        $id     = $object->getTaskId();
-        $url    = $object->getViewUrl();
-        $name   = $object->getName();
+            $task_id    = $object->getTaskId();
+            $task_name  = $object->getName();
+            $task_url   = $object->getViewUrl();
 
-        $message = "New task *<{$url}|#{$id}: {$name}>*";
+            $message    = "New task *<{$task_url}|#{$task_id}: {$task_name}>*";
+            $user       = $object->assignees()->getAssignee();
 
-        $assignees = $object->assignees();
-        //$assignees_list = array();
+            // Tasks can be without assignees
+            if ($user) {
+                $user_name = $user->getName();
 
-        $user = $assignees->getAssignee();
-        if ($user) {
+                // @todo make this an object...
+                if ($slack_user = slack_get_user_by_email($user->getEmail(), $token)) {
+                    $user_name = "<@{$slack_user['id']}>";
+                }
 
-          $user_name = $user->getName();
-          // @todo make this an object...
-          if ($slack_user = slack_get_user_by_email($user->getEmail())) {
-            $user_name = "@{$slack_user['name']}";
-          }
-          $message .= " assigned to {$user_name}";
+                $message .= " assigned to *{$user_name}*";
+            }
 
+            slack_post_message($message, $channel, $token);
         }
-
-        $slack->call('chat.postMessage', array(
-          'channel'     => $channel,
-          'text'        => $message,
-          'username'    => 'ActiveCollab',
-          'as_user'     => FALSE,
-          'icon_url'    => defined('ASSETS_URL') ? ASSETS_URL . '/images/system/default/application-branding/logo.40x40.png'  : ''
-        ));
-
-      }
     }
+
     if ($object instanceof TaskComment) {
 
-      $project = $object->getProject();
-      if ($channel = $project->getCustomField1()) {
+        $project    = $object->getProject();
+        $channel    = slack_get_channel( $project->getCustomField1() );
+        $token      = slack_get_token( $project->getCustomField2() );
 
-        $created_by = $object->getCreatedByName();
-        //$url = $object->getViewUrl();
+        if ($channel && $token) {
 
-        $task       = $object->getParent();
-        $task_id    = $task->getTaskId();
-        $task_name  = $task->getName();
-        $task_url   = $task->getViewUrl();
+            $task       = $object->getParent();
+            $task_id    = $task->getTaskId();
+            $task_name  = $task->getName();
+            $task_url   = $task->getViewUrl();
 
-        $body = strip_tags($object->getBody());
+            // Every comment must have a user name
+            $user       = $object->getCreatedBy();
+            $user_name  = $user->getName();
 
-        $slack->call('chat.postMessage', array(
-          'channel'     => $channel,
-          'text'        => "New comment by *$created_by* on task *<{$task_url}|#{$task_id}: {$task_name}>*",
-          'username'    => 'ActiveCollab',
-          'as_user'     => FALSE,
-          'icon_url'    => defined('ASSETS_URL') ? ASSETS_URL . '/images/system/default/application-branding/logo.40x40.png'  : ''
-        ));
-        $slack->call('chat.postMessage', array(
-          'channel'     => $channel,
-          'text'        => ">>>{$body}",
-          'username'    => 'ActiveCollab',
-          'as_user'     => FALSE,
-          'icon_url'    => defined('ASSETS_URL') ? ASSETS_URL . '/images/system/default/application-branding/logo.40x40.png'  : ''
-        ));
-      }
+            // @todo make this an object...
+            if ($slack_user = slack_get_user_by_email($user->getEmail(), $token)) {
+                $user_name = "<@{$slack_user['id']}>";
+            }
+
+            # Remove HTML tags but make sure to include line breaks
+            $message    = "New comment by *{$user_name}* on task *<{$task_url}|#{$task_id}: {$task_name}>*\n>>>";
+            $message   .= strip_tags(str_replace('</p>', "</p>\n\n", $object->getBody()));
+
+            slack_post_message($message, $channel, $token);
+        }
     }
-
-  }
-
 }

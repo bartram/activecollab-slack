@@ -1,48 +1,34 @@
 <?php
 
+/**
+ * @param $object
+ * @throws NotImplementedError
+ */
 function slack_handle_on_object_completed($object) {
-    if (defined('SLACK_API_TOKEN')) {
 
-        $slack = new Slack(SLACK_API_TOKEN);
+    if ($object instanceof Task) {
 
-        if ($object instanceof Task) {
+        $project    = $object->getProject();
+        $channel    = slack_get_channel( $project->getCustomField1() );
+        $token      = slack_get_token( $project->getCustomField2() );
 
-            $project = $object->getProject();
-            if ($channel = $project->getCustomField1()) {
+        if ($channel && $token) {
 
-                //$slack_users = $slack->call('users.list');
+            $task_id    = $object->getTaskId();
+            $task_name  = $object->getName();
+            $task_url   = $object->getViewUrl();
 
-                $id     = $object->getTaskId();
-                $url    = $object->getViewUrl();
-                $name   = $object->getName();
+            // There's no object named getCompletedBy()...
+            $user_name  = $object->getCompletedByName();
 
-                $message = "Task completed *<{$url}|#{$id}: {$name}>*";
-
-                $assignees = $object->assignees();
-                //$assignees_list = array();
-
-                $user = $assignees->getAssignee();
-                if ($user) {
-
-                    $user_name = $user->getName();
-
-                    // @todo make this an object...
-                    if ($slack_user = slack_get_user_by_email($user->getEmail())) {
-                        $user_name = "@{$slack_user['name']}";
-                    }
-                    $message .= " by {$user_name}";
-
-                }
-
-                $slack->call('chat.postMessage', array(
-                    'channel'   => $channel,
-                    'text'      => $message,
-                    'username'  => 'ActiveCollab',
-                    'as_user'   => FALSE,
-                    'icon_url'  => defined('ASSETS_URL') ? ASSETS_URL . '/images/system/default/application-branding/logo.40x40.png'  : ''
-                ));
-
+            // @todo make this an object...
+            if ($slack_user = slack_get_user_by_email($object->getCompletedByEmail(), $token)) {
+                $user_name = "<@{$slack_user['id']}>";
             }
+
+            $message = "Task completed *<{$task_url}|#{$task_id}: {$task_name}>* by *{$user_name}*";
+
+            slack_post_message($message, $channel, $token);
         }
     }
 }
